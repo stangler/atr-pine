@@ -17,26 +17,38 @@ else
 
 atr_val = ta.atr(atr_period)
 atr_pct = (atr_val / close) * 100
-
 col = atr_pct < thresh_ok ? color.blue : atr_pct < thresh_ng ? color.yellow : color.red
 
 plot(atr_pct,   "ATR%",      color=col,        linewidth=2)
-plot(thresh_ok, "エントリー", color=color.blue, linewidth=1, style=plot.style_line)
-plot(thresh_ng, "見送り",    color=color.red,  linewidth=1, style=plot.style_line)
+plot(thresh_ok, "エントリー", color=color.blue, linewidth=1)
+plot(thresh_ng, "見送り",    color=color.red,  linewidth=1)
 
 // TP/SL計算
-entry   = close
-l_tp    = math.round(entry * 1.012, 1)
-l_sl    = math.round(entry * 0.994, 1)
-s_tp    = math.round(entry * 0.988, 1)
-s_sl    = math.round(entry * 1.006, 1)
+entry = close
+l_tp  = math.round(entry * 1.012, 1)
+l_sl  = math.round(entry * 0.994, 1)
+s_tp  = math.round(entry * 0.988, 1)
+s_sl  = math.round(entry * 1.006, 1)
 
 judge = atr_pct < thresh_ok ? "✅ エントリー" : atr_pct < thresh_ng ? "⚠️ ロット半減" : "❌ 見送り"
 
-label_text = "ATR%: " + str.tostring(atr_pct, "#.##") + "%  " + judge + "\n" +
-             "現在値: " + str.tostring(entry, "#.#") + "\n" +
-             "▲ロング  TP: " + str.tostring(l_tp, "#.#") + "  SL: " + str.tostring(l_sl, "#.#") + "\n" +
-             "▼ショート TP: " + str.tostring(s_tp, "#.#") + "  SL: " + str.tostring(s_sl, "#.#")
+// テーブル（1度だけ生成・barstate.islastで更新）
+var table t = table.new(position.top_right, 2, 7,
+     bgcolor=color.new(color.black, 20),
+     border_width=1, border_color=color.new(color.gray, 50))
 
 if barstate.islast
-    label.new(bar_index, atr_pct, label_text, color=col, textcolor=color.white, style=label.style_label_left, size=size.normal, textalign=text.align_left)
+    table.cell(t, 0, 0, "ATR%",       text_color=color.white,  bgcolor=color.new(color.gray, 70))
+    table.cell(t, 1, 0, str.tostring(atr_pct, "#.##") + "%", text_color=col)
+    table.cell(t, 0, 1, "判定",        text_color=color.white,  bgcolor=color.new(color.gray, 70))
+    table.cell(t, 1, 1, judge,        text_color=col)
+    table.cell(t, 0, 2, "現在値",      text_color=color.white,  bgcolor=color.new(color.gray, 70))
+    table.cell(t, 1, 2, str.tostring(entry, "#.#"),  text_color=color.white)
+    table.cell(t, 0, 3, "▲ロング  TP", text_color=color.blue,   bgcolor=color.new(color.gray, 70))
+    table.cell(t, 1, 3, str.tostring(l_tp, "#.#"),  text_color=color.blue)
+    table.cell(t, 0, 4, "▲ロング  SL", text_color=color.red,    bgcolor=color.new(color.gray, 70))
+    table.cell(t, 1, 4, str.tostring(l_sl, "#.#"),  text_color=color.red)
+    table.cell(t, 0, 5, "▼ショート TP", text_color=color.blue,   bgcolor=color.new(color.gray, 70))
+    table.cell(t, 1, 5, str.tostring(s_tp, "#.#"),  text_color=color.blue)
+    table.cell(t, 0, 6, "▼ショート SL", text_color=color.red,    bgcolor=color.new(color.gray, 70))
+    table.cell(t, 1, 6, str.tostring(s_sl, "#.#"),  text_color=color.red)
