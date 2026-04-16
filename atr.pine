@@ -1,0 +1,42 @@
+//@version=6
+indicator("ATR Volatility Filter", overlay=false)
+
+atr_period = input.int(5, "ATR期間")
+
+var float thresh_ok = na
+var float thresh_ng = na
+if timeframe.multiplier == 1
+    thresh_ok := 0.8
+    thresh_ng := 1.5
+else if timeframe.multiplier == 3
+    thresh_ok := 1.2
+    thresh_ng := 2.0
+else
+    thresh_ok := 1.5
+    thresh_ng := 2.5
+
+atr_val = ta.atr(atr_period)
+atr_pct = (atr_val / close) * 100
+
+col = atr_pct < thresh_ok ? color.blue : atr_pct < thresh_ng ? color.yellow : color.red
+
+plot(atr_pct,   "ATR%",      color=col,        linewidth=2)
+plot(thresh_ok, "エントリー", color=color.blue, linewidth=1, style=plot.style_line)
+plot(thresh_ng, "見送り",    color=color.red,  linewidth=1, style=plot.style_line)
+
+// TP/SL計算
+entry   = close
+l_tp    = math.round(entry * 1.012, 1)
+l_sl    = math.round(entry * 0.994, 1)
+s_tp    = math.round(entry * 0.988, 1)
+s_sl    = math.round(entry * 1.006, 1)
+
+judge = atr_pct < thresh_ok ? "✅ エントリー" : atr_pct < thresh_ng ? "⚠️ ロット半減" : "❌ 見送り"
+
+label_text = "ATR%: " + str.tostring(atr_pct, "#.##") + "%  " + judge + "\n" +
+             "現在値: " + str.tostring(entry, "#.#") + "\n" +
+             "▲ロング  TP: " + str.tostring(l_tp, "#.#") + "  SL: " + str.tostring(l_sl, "#.#") + "\n" +
+             "▼ショート TP: " + str.tostring(s_tp, "#.#") + "  SL: " + str.tostring(s_sl, "#.#")
+
+if barstate.islast
+    label.new(bar_index, atr_pct, label_text, color=col, textcolor=color.white, style=label.style_label_left, size=size.normal, textalign=text.align_left)
