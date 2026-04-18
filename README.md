@@ -145,4 +145,4 @@ ATR%でボラティリティによるエントリー可否を判定し、**TP/SL
 
 ---
 
-**ブランチ**: `feature/atr-multiplier-with-bias`
+**ブランチ**: `feature/macd`

@@ -91,30 +91,38 @@ updateInfoTable() =>
         table.cell(info_table, 1, 0, "値",   text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
         
         // 1. ATR情報
-        table.cell(info_table, 0, 1, "ATR%", text_color=color.white, bgcolor=color.new(color.gray, 70))
-        table.cell(info_table, 1, 1, str.tostring(atr_pct, "#.##") + "%", text_color=col)
-        
+        // table.cell(info_table, 0, 1, "ATR%", text_color=color.white, bgcolor=color.new(color.gray, 70))
+        // table.cell(info_table, 1, 1, str.tostring(atr_pct, "#.##") + "%", text_color=col)
+ 
         table.cell(info_table, 0, 2, "ATR判定", text_color=color.white, bgcolor=color.new(color.gray, 70))
         table.cell(info_table, 1, 2, judge, text_color=col)
         
         // 2. 現在値 / ATR
-        table.cell(info_table, 0, 3, "現在値 / ATR", text_color=color.white, bgcolor=color.new(color.gray, 70))
-        table.cell(info_table, 1, 3, str.tostring(entry_price, "#.####") + " / " + str.tostring(atr_val, "#.####"), text_color=color.white)
-        
+        // table.cell(info_table, 0, 3, "現在値 / ATR", text_color=color.white, bgcolor=color.new(color.gray, 70))
+        // table.cell(info_table, 1, 3, str.tostring(entry_price, "#.####") + " / " + str.tostring(atr_val, "#.####"), text_color=color.white)
+        table.cell(info_table, 0, 3, "現在値", text_color=color.white, bgcolor=color.new(color.gray, 70))
+        table.cell(info_table, 1, 3, str.tostring(entry_price, "#.####"), text_color=color.white)
+
         // 3. ロング TP/SL
         table.cell(info_table, 0, 4, "▲ロング TP / SL", text_color=color.white, bgcolor=color.new(color.gray, 70))
-        table.cell(info_table, 1, 4, str.tostring(l_tp, "#.####") + " / " + str.tostring(l_sl, "#.####"), text_color=color.white)
-        
+        // table.cell(info_table, 1, 4, str.tostring(l_tp, "#.####") + " / " + str.tostring(l_sl, "#.####"), text_color=color.white)
+        table.cell(info_table, 1, 4, str.tostring(l_tp, "#.#") + " / " + str.tostring(l_sl, "#.#"), text_color=color.white)
+
         // 4. ショート TP/SL
         table.cell(info_table, 0, 5, "▼ショート TP / SL", text_color=color.white, bgcolor=color.new(color.gray, 70))
-        table.cell(info_table, 1, 5, str.tostring(s_tp, "#.####") + " / " + str.tostring(s_sl, "#.####"), text_color=color.white)
-        
+        // table.cell(info_table, 1, 5, str.tostring(s_tp, "#.####") + " / " + str.tostring(s_sl, "#.####"), text_color=color.white)
+        table.cell(info_table, 1, 5, str.tostring(s_tp, "#.#") + " / " + str.tostring(s_sl, "#.#"), text_color=color.white)
+
         // 5. 方向性判定
         table.cell(info_table, 0, 6, "方向性判定", text_color=color.white, bgcolor=color.new(color.gray, 70))
-        table.cell(info_table, 1, 6, bias_judge, text_color=bias_col, text_size=size.large)
+        // table.cell(info_table, 1, 6, bias_judge, text_color=bias_col, text_size=size.large)
+        table.cell(info_table, 1, 6, bias_judge, text_color=bias_col)
+
         
         // 6. 逆張りシグナル
         table.cell(info_table, 0, 7, "逆張りシグナル", text_color=color.white, bgcolor=color.new(color.gray, 70))
-        table.cell(info_table, 1, 7, reversal_text, text_color=reversal_col, text_size=size.large)
+        // table.cell(info_table, 1, 7, reversal_text, text_color=reversal_col, text_size=size.large)
+        table.cell(info_table, 1, 7, reversal_text, text_color=reversal_col)
+
 
 updateInfoTable()
