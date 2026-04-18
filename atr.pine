@@ -2,22 +2,25 @@
 indicator("ATRフィルター + ATR倍率 TP/SL + 方向性判断 + 逆張りシグナル", overlay=false, max_bars_back=500)
 
 // ==================== 入力設定 ====================
-atr_group   = "ATR設定"
-bias_group  = "方向性判断"
-ob_group    = "逆張り（買われ過ぎ/売られ過ぎ）"
+atr_group  = "ATR設定"
+bias_group = "方向性判断"
+ob_group   = "逆張り（買われ過ぎ/売られ過ぎ）"
 
-atr_period   = input.int(14,  "ATR期間",          minval=1,  group=atr_group)
-sl_mult      = input.float(1.5, "SL 倍率 (損切り)", step=0.1, group=atr_group)
-tp_mult      = input.float(3.0, "TP 倍率 (利確)",   step=0.1, group=atr_group)
+atr_period = input.int(14,    "ATR期間",           minval=1,  group=atr_group)
+sl_mult    = input.float(1.5, "SL 倍率 (損切り)",  step=0.1,  group=atr_group)
+tp_mult    = input.float(3.0, "TP 倍率 (利確)",    step=0.1,  group=atr_group)
 
-rsi_length     = input.int(14, "RSI期間",          minval=1, group=bias_group)
+rsi_length     = input.int(14, "RSI期間",           minval=1, group=bias_group)
 stoch_k_length = input.int(14, "Stochastic %K期間", minval=1, group=bias_group)
 stoch_d_length = input.int(3,  "Stochastic %D期間", minval=1, group=bias_group)
 
-rsi_ob_level   = input.int(80, "RSI 買われ過ぎレベル", minval=50, maxval=95, group=ob_group)
-rsi_os_level   = input.int(20, "RSI 売られ過ぎレベル", minval=5,  maxval=50, group=ob_group)
+rsi_ob_level   = input.int(80, "RSI 買われ過ぎレベル",   minval=50, maxval=95, group=ob_group)
+rsi_os_level   = input.int(20, "RSI 売られ過ぎレベル",   minval=5,  maxval=50, group=ob_group)
 stoch_ob_level = input.int(80, "Stoch 買われ過ぎレベル", minval=50, maxval=95, group=ob_group)
 stoch_os_level = input.int(20, "Stoch 売られ過ぎレベル", minval=5,  maxval=50, group=ob_group)
+macd_fast      = input.int(5,  "MACD 短期EMA",          minval=1,             group=ob_group)
+macd_slow      = input.int(10, "MACD 長期EMA",          minval=1,             group=ob_group)
+macd_signal    = input.int(3,  "MACD シグナル期間",      minval=1,             group=ob_group)
 
 // ==================== 時間足別閾値 ====================
 getTimeframeThresholds() =>
@@ -40,9 +43,25 @@ determineBias(rsi, k, d) =>
     bias_color = long_good ? color.lime : short_good ? color.red : color.gray
     [bias_text, bias_color]
 
-determineReversalSignal(rsi, stoch_k) =>
-    overbought = rsi >= rsi_ob_level and stoch_k >= stoch_ob_level
-    oversold   = rsi <= rsi_os_level and stoch_k <= stoch_os_level
+getIndicatorState(val, ob_level, os_level) =>
+    if val >= ob_level
+        ["🔴 " + str.tostring(val, "#.#"), color.red]
+    else if val <= os_level
+        ["🟢 " + str.tostring(val, "#.#"), color.lime]
+    else
+        ["⚪ " + str.tostring(val, "#.#"), color.gray]
+
+getMacdHistState(hist) =>
+    if hist < 0
+        ["🔴 " + str.tostring(hist, "#.####"), color.red]
+    else if hist > 0
+        ["🟢 " + str.tostring(hist, "#.####"), color.lime]
+    else
+        ["⚪ " + str.tostring(hist, "#.####"), color.gray]
+
+determineReversalSignal(rsi, stoch_k, macd_hist) =>
+    overbought = rsi >= rsi_ob_level and stoch_k >= stoch_ob_level and macd_hist < 0
+    oversold   = rsi <= rsi_os_level and stoch_k <= stoch_os_level and macd_hist > 0
     if overbought
         ["🔴 買われ過ぎ (逆張りロング注意)", color.red]
     else if oversold
@@ -58,71 +77,96 @@ getEntrySignals(atr_pct, thresh_ok, thresh_ng) =>
 // ==================== メイン計算 ====================
 [atr_val, atr_pct] = calculateATR()
 
-rsi_val   = ta.rsi(close, rsi_length)
-stoch_k   = ta.stoch(close, high, low, stoch_k_length)
-stoch_d   = ta.sma(stoch_k, stoch_d_length)
+rsi_val = ta.rsi(close, rsi_length)
+stoch_k = ta.stoch(close, high, low, stoch_k_length)
+stoch_d = ta.sma(stoch_k, stoch_d_length)
 
-[bias_judge, bias_col] = determineBias(rsi_val, stoch_k, stoch_d)
-[reversal_text, reversal_col] = determineReversalSignal(rsi_val, stoch_k)
-[judge, col] = getEntrySignals(atr_pct, thresh_ok, thresh_ng)
+[macd_line, signal_line, macd_hist] = ta.macd(close, macd_fast, macd_slow, macd_signal)
+
+[bias_judge, bias_col]        = determineBias(rsi_val, stoch_k, stoch_d)
+[reversal_text, reversal_col] = determineReversalSignal(rsi_val, stoch_k, macd_hist)
+[judge, col]                  = getEntrySignals(atr_pct, thresh_ok, thresh_ng)
 
 // ==================== TP/SL計算 ====================
 entry_price = close
-l_tp = math.round(entry_price + (atr_val * tp_mult), 2)
-l_sl = math.round(entry_price - (atr_val * sl_mult), 2)
-s_tp = math.round(entry_price - (atr_val * tp_mult), 2)
-s_sl = math.round(entry_price + (atr_val * sl_mult), 2)
+// l_tp = math.round(entry_price + (atr_val * tp_mult), 2)
+// l_sl = math.round(entry_price - (atr_val * sl_mult), 2)
+// s_tp = math.round(entry_price - (atr_val * tp_mult), 2)
+// s_sl = math.round(entry_price + (atr_val * sl_mult), 2)
+l_tp = math.round(entry_price + (atr_val * tp_mult), 1)
+l_sl = math.round(entry_price - (atr_val * sl_mult), 1)
+s_tp = math.round(entry_price - (atr_val * tp_mult), 1)
+s_sl = math.round(entry_price + (atr_val * sl_mult), 1)
 
 // ==================== プロット ====================
 plot(atr_pct, "ATR%", color=col, linewidth=2)
 plot(thresh_ok, "エントリー閾値", color=color.blue, linewidth=1)
-plot(thresh_ng, "見送り閾値", color=color.red, linewidth=1)
+plot(thresh_ng, "見送り閾値",     color=color.red,  linewidth=1)
 
-// ==================== テーブル（8行） ====================
-info_table = table.new(position.top_right, 2, 8, 
-     bgcolor = color.new(color.black, 20),
+// ==================== テーブル（9行） ====================
+info_table = table.new(position.top_right, 2, 9,
+     bgcolor      = color.new(color.black, 20),
      border_width = 1,
      border_color = color.new(color.gray, 50))
 
 updateInfoTable() =>
     if barstate.islast
-        // ヘッダー
-        table.cell(info_table, 0, 0, "項目", text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
-        table.cell(info_table, 1, 0, "値",   text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
-        
-        // 1. ATR情報
-        // table.cell(info_table, 0, 1, "ATR%", text_color=color.white, bgcolor=color.new(color.gray, 70))
-        // table.cell(info_table, 1, 1, str.tostring(atr_pct, "#.##") + "%", text_color=col)
- 
-        table.cell(info_table, 0, 2, "ATR判定", text_color=color.white, bgcolor=color.new(color.gray, 70))
-        table.cell(info_table, 1, 2, judge, text_color=col)
-        
-        // 2. 現在値 / ATR
-        // table.cell(info_table, 0, 3, "現在値 / ATR", text_color=color.white, bgcolor=color.new(color.gray, 70))
-        // table.cell(info_table, 1, 3, str.tostring(entry_price, "#.####") + " / " + str.tostring(atr_val, "#.####"), text_color=color.white)
-        table.cell(info_table, 0, 3, "現在値", text_color=color.white, bgcolor=color.new(color.gray, 70))
+        table.cell(info_table, 0, 0, "項目",               text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(info_table, 1, 0, "値",                 text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.small)
+        table.cell(info_table, 0, 2, "ATR判定",            text_color=color.white, bgcolor=color.new(color.gray, 70))
+        table.cell(info_table, 1, 2, judge,                text_color=col)
+        table.cell(info_table, 0, 3, "現在値",             text_color=color.white, bgcolor=color.new(color.gray, 70))
         table.cell(info_table, 1, 3, str.tostring(entry_price, "#.####"), text_color=color.white)
-
-        // 3. ロング TP/SL
-        table.cell(info_table, 0, 4, "▲ロング TP / SL", text_color=color.white, bgcolor=color.new(color.gray, 70))
-        // table.cell(info_table, 1, 4, str.tostring(l_tp, "#.####") + " / " + str.tostring(l_sl, "#.####"), text_color=color.white)
+        table.cell(info_table, 0, 4, "▲ロング TP / SL",   text_color=color.white, bgcolor=color.new(color.gray, 70))
         table.cell(info_table, 1, 4, str.tostring(l_tp, "#.#") + " / " + str.tostring(l_sl, "#.#"), text_color=color.white)
-
-        // 4. ショート TP/SL
         table.cell(info_table, 0, 5, "▼ショート TP / SL", text_color=color.white, bgcolor=color.new(color.gray, 70))
-        // table.cell(info_table, 1, 5, str.tostring(s_tp, "#.####") + " / " + str.tostring(s_sl, "#.####"), text_color=color.white)
         table.cell(info_table, 1, 5, str.tostring(s_tp, "#.#") + " / " + str.tostring(s_sl, "#.#"), text_color=color.white)
+        table.cell(info_table, 0, 6, "方向性判定",         text_color=color.white, bgcolor=color.new(color.gray, 70))
+        table.cell(info_table, 1, 6, bias_judge,           text_color=bias_col)
+        table.cell(info_table, 0, 7, "逆張りシグナル",     text_color=color.white, bgcolor=color.new(color.gray, 70))
+        table.cell(info_table, 1, 7, reversal_text,        text_color=reversal_col)
 
-        // 5. 方向性判定
-        table.cell(info_table, 0, 6, "方向性判定", text_color=color.white, bgcolor=color.new(color.gray, 70))
-        // table.cell(info_table, 1, 6, bias_judge, text_color=bias_col, text_size=size.large)
-        table.cell(info_table, 1, 6, bias_judge, text_color=bias_col)
+        [rsi_text,   rsi_col]   = getIndicatorState(rsi_val, rsi_ob_level, rsi_os_level)
+        [stoch_text, stoch_col] = getIndicatorState(stoch_k,  stoch_ob_level, stoch_os_level)
+        [macd_text,  macd_col]  = getMacdHistState(macd_hist)
 
-        
-        // 6. 逆張りシグナル
-        table.cell(info_table, 0, 7, "逆張りシグナル", text_color=color.white, bgcolor=color.new(color.gray, 70))
-        // table.cell(info_table, 1, 7, reversal_text, text_color=reversal_col, text_size=size.large)
-        table.cell(info_table, 1, 7, reversal_text, text_color=reversal_col)
-
+        table.cell(info_table, 0, 8, "RSI/Stoch/MACD",    text_color=color.white, bgcolor=color.new(color.gray, 80))
+        table.cell(info_table, 1, 8, rsi_text + "  " + stoch_text + "  " + macd_text, text_color=color.white)
 
 updateInfoTable()
+
+// ==================== アラート ====================
+// 条件定義
+alert_overbought = rsi_val >= rsi_ob_level and stoch_k >= stoch_ob_level and macd_hist < 0
+alert_oversold   = rsi_val <= rsi_os_level and stoch_k <= stoch_os_level and macd_hist > 0
+
+bias_long  = rsi_val > 50 and stoch_k > stoch_d
+bias_short = rsi_val < 50 and stoch_k < stoch_d
+bias_to_long  = bias_long  and not bias_long[1]
+bias_to_short = bias_short and not bias_short[1]
+
+atr_is_ng = atr_pct >= thresh_ng
+
+// alertcondition（TV UIでON/OFF可能）
+alertcondition(alert_overbought, title="🔴 逆張り：買われ過ぎ",       message="買われ過ぎ発火 | RSI/Stoch/MACD全OB | {{ticker}} {{interval}}")
+alertcondition(alert_oversold,   title="🟢 逆張り：売られ過ぎ",       message="売られ過ぎ発火 | RSI/Stoch/MACD全OS | {{ticker}} {{interval}}")
+alertcondition(bias_to_long,     title="🟢 方向性転換：ロング優勢へ", message="方向性→ロング優勢 | {{ticker}} {{interval}}")
+alertcondition(bias_to_short,    title="🔴 方向性転換：ショート優勢へ",message="方向性→ショート優勢 | {{ticker}} {{interval}}")
+alertcondition(atr_is_ng,        title="a❌ ATR見送り突入",             message="ATR% 見送り閾値超え | {{ticker}} {{interval}}")
+
+// alert()：逆張り発火時にTP/SL実値を含む動的メッセージ
+if alert_overbought
+    alert("🔴 買われ過ぎ発火\n" +
+          "銘柄: " + syminfo.ticker + " " + timeframe.period + "分\n" +
+          "現在値: " + str.tostring(close, "#.####") + "\n" +
+          "ロング TP: " + str.tostring(l_tp, "#.#") + " / SL: " + str.tostring(l_sl, "#.#") + "\n" +
+          "ATR判定: " + judge,
+          alert.freq_once_per_bar_close)
+
+if alert_oversold
+    alert("🟢 売られ過ぎ発火\n" +
+          "銘柄: " + syminfo.ticker + " " + timeframe.period + "分\n" +
+          "現在値: " + str.tostring(close, "#.####") + "\n" +
+          "ショート TP: " + str.tostring(s_tp, "#.#") + " / SL: " + str.tostring(s_sl, "#.#") + "\n" +
+          "ATR判定: " + judge,
+          alert.freq_once_per_bar_close)
